@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local SDK / machine config — must not be shared
+local.properties
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Backend service is tracked in its own repository
+/stignit-api/
+
+# OS cruft
+.DS_Store
+Thumbs.db
