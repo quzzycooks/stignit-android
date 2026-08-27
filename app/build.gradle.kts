@@ -13,17 +13,28 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0-milestone1"
-
-        // Local dev: NestJS API on the host machine, reachable from the emulator
-        // via 10.0.2.2. Override per build type / product flavor when there's a
-        // real deployed backend.
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+        // API_BASE_URL is defined per build type below — never hardcode it in
+        // Kotlin. Must include the trailing slash (Retrofit base-URL contract).
     }
 
     buildTypes {
+        debug {
+            // Same deployed backend as release for now; this is the seam where a
+            // local (10.0.2.2) or staging backend would be swapped in for dev.
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"https://stgv3-production.up.railway.app/\"",
+            )
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"https://stgv3-production.up.railway.app/\"",
+            )
         }
     }
 

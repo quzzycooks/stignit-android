@@ -23,10 +23,12 @@ styles, status pills, panels) are ported 1:1 from the web app's design
 tokens, not approximated.
 
 Auth flow (phone → OTP → profile → home) is built and wired against a
-Retrofit client (`data/net/`, `AuthRepository`, `SessionStore`). Verified
-end-to-end on an emulator against a mock of stignit-api's auth endpoints:
+Retrofit client (`data/net/`, `AuthRepository`, `SessionStore`):
 `/v1/auth/otp/request` → `/v1/auth/otp/verify` → `/v1/users/register`,
 bearer token persisted between steps, session skips auth on relaunch.
+Base URL is `BuildConfig.API_BASE_URL`, set per build type in
+`app/build.gradle.kts` — both debug and release point at the deployed
+backend `https://stgv3-production.up.railway.app`.
 
 Still open:
 - Plus Jakarta Sans isn't bundled — see the note in `Theme.kt`
@@ -35,7 +37,9 @@ Still open:
 - Register form: the fixed "Finish setup" footer overlaps the last field
   when scrolled to the bottom — needs extra bottom padding on the scroll
   content
-- Only exercised against the mock so far, not the real `stignit-api`
+- OTP verify + register only exercised against a mock so far; the live
+  backend runs in production mode (no `devCode` in the response) so the
+  full flow needs a real SMS-capable Nigerian number to test
 
 ## Roadmap (build order)
 1. **Foreground service skeleton** ✅
@@ -53,8 +57,9 @@ Still open:
    fixed 30s timer
 5. **Backend wiring** — Retrofit client against `stignit-api`, hook auth
    (email/phone OTP) and incident creation on escalate
-   - auth + registration: ✅ built, ✅ tested vs mock — real API + incident
-     creation still to do
+   - client points at the deployed backend (`stgv3-production.up.railway.app`);
+     wire models verified 1:1 against the NestJS DTOs
+   - incident creation on escalate still to do
 
 ## Package layout
 ```
