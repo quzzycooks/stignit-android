@@ -69,10 +69,20 @@ class AuthRepository(
     private fun parseError(e: HttpException): String {
         val raw = e.response()?.errorBody()?.string().orEmpty()
         val parsed = runCatching { gson.fromJson(raw, ApiErrorBody::class.java) }.getOrNull()
-        return parsed?.readableMessage() ?: when (e.code()) {
+        val apiMessage = parsed?.readableMessage()
+        // The API always answers with a JSON envelope. A response with neither a
+        // statusCode nor a message came from the gateway / edge (e.g. Railway
+        // returning plain-text "rate limited"), or the service is down — not
+        // something the user did, so don't blame their input.
+        val fromApi = parsed?.statusCode != null || apiMessage != null
+
+        return when (e.code()) {
             401 -> "Incorrect or expired code."
-            429 -> "Too many attempts. Wait a moment and try again."
-            else -> "Request failed (${e.code()})."
+            429 ->
+                if (fromApi) "Too many attempts. Wait a moment and try again."
+                else "StignIt's servers are busy right now. Try again in a minute."
+            in 500..599 -> "StignIt's servers are having trouble. Try again shortly."
+            else -> apiMessage ?: "Request failed (${e.code()})."
         }
     }
 }
