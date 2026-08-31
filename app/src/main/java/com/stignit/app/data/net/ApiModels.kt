@@ -62,6 +62,16 @@ data class RegisterBody(
 
 data class RegisterResponse(val id: String, val accessLevel: String)
 
+// --- GET/POST/DELETE /v1/users/me/emergency-contacts ---
+data class EmergencyContactResponse(
+    val id: String,
+    val name: String,
+    val phoneNumber: String,
+    val relationship: String,
+    val priority: Int,
+    val verified: Boolean,
+)
+
 // --- POST /v1/incidents ---
 data class GpsBody(val lat: Double, val lng: Double, val accuracyMeters: Float? = null)
 
@@ -82,6 +92,15 @@ data class IncidentDetailsResponse(
     val triggeringUserId: String?,
     val status: String,
     val createdAt: String,
+)
+
+// --- GET /v1/incidents/mine ---
+data class IncidentHistoryEntry(
+    val incidentId: String,
+    val incidentType: String,
+    val status: String,
+    val createdAt: String,
+    val closedAt: String?,
 )
 
 // --- POST /v1/incidents/location ---

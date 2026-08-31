@@ -60,11 +60,10 @@ fun SettingsScreen(onBack: () -> Unit) {
     }
 
     Screen(modifier = Modifier.imePadding(), scrollable = false) {
-        TopBar(title = "Settings", onBack = onBack)
+        TopBar(title = "Medical Profile", onBack = onBack)
 
         Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(8.dp))
-            Text("Medical profile", fontSize = 20.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             Text(
                 "Only visible to a verified Skilled Responder while you're a participant in an open incident.",
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),

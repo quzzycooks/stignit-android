@@ -18,11 +18,26 @@ import androidx.compose.ui.unit.sp
 import com.stignit.app.ui.components.*
 import com.stignit.app.ui.theme.StignItExtraColors
 
+private val GUIDE_ICONS: Map<String, androidx.compose.ui.graphics.vector.ImageVector> = mapOf(
+    "cpr-adult" to Icons.Filled.MonitorHeart,
+    "severe-bleeding" to Icons.Filled.WaterDrop,
+    "choking-adult" to Icons.Filled.Air,
+    "burns" to Icons.Filled.LocalFireDepartment,
+    "shock" to Icons.Filled.Warning,
+    "stroke" to Icons.Filled.Psychology,
+    "heart-attack" to Icons.Filled.Favorite,
+    "recovery-position" to Icons.Filled.Bed,
+    "seizures" to Icons.Filled.Bolt,
+    "rta-scene-safety" to Icons.Filled.DirectionsCar,
+    "anaphylaxis" to Icons.Filled.Coronavirus,
+)
+
 /** Direct port of src/routes/safety.tsx — practice drill + safety guides. */
 @Composable
 fun SafetyScreen(
     onBack: () -> Unit,
     onStartDrill: () -> Unit,
+    onOpenGuide: (guideId: String) -> Unit,
     currentTab: BottomNavTab,
     onSelectTab: (BottomNavTab) -> Unit,
 ) {
@@ -54,9 +69,14 @@ fun SafetyScreen(
 
             SectionTitle("Guides")
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 20.dp)) {
-                NavTile(Icons.AutoMirrored.Filled.MenuBook, "First 60 seconds after a crash", "What to check before you move", onBack)
-                NavTile(Icons.Filled.LocalFireDepartment, "Roadside fire risk", "When to leave the vehicle immediately", onBack)
-                NavTile(Icons.Filled.WaterDrop, "Basic bleeding control", "Pressure, elevation and what not to do", onBack)
+                DRILL_GUIDES.forEach { guide ->
+                    NavTile(
+                        icon = GUIDE_ICONS[guide.id] ?: Icons.AutoMirrored.Filled.MenuBook,
+                        label = guide.title,
+                        hint = guide.category,
+                        onClick = { onOpenGuide(guide.id) },
+                    )
+                }
             }
         }
         BottomNav(current = currentTab, onSelect = onSelectTab)

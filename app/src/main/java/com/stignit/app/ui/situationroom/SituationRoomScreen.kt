@@ -151,6 +151,7 @@ fun SituationRoomScreen(incidentId: String, onBack: () -> Unit, onMarkSafe: () -
         Panel {
             LiveLocationMap(
                 position = livePosition,
+                waitingForFix = !isDrill,
                 placeholderText = if (isDrill) "Drill mode — map disabled" else "Waiting for a GPS fix…",
             )
         }

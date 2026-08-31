@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stignit.app.data.ApiResult
+import com.stignit.app.data.rememberContactsRepository
+import com.stignit.app.data.rememberIncidentRepository
 import com.stignit.app.data.rememberLocationRepository
 import com.stignit.app.data.rememberUserRepository
 import com.stignit.app.location.LocationTracker
@@ -47,6 +49,23 @@ fun HomeScreen(
         when (val r = userRepo.getMe()) {
             is ApiResult.Ok -> showMedicalReminder = !r.value.medicalInfoComplete
             is ApiResult.Err -> Unit // not worth surfacing on Home; Settings will show it if visited
+        }
+    }
+
+    val contactsRepo = rememberContactsRepository()
+    val incidentRepo = rememberIncidentRepository()
+    var contactCount by remember { mutableStateOf<Int?>(null) }
+    var incidentCount by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(Unit) {
+        when (val r = contactsRepo.list()) {
+            is ApiResult.Ok -> contactCount = r.value.size
+            is ApiResult.Err -> Unit
+        }
+    }
+    LaunchedEffect(Unit) {
+        when (val r = incidentRepo.getMyIncidents()) {
+            is ApiResult.Ok -> incidentCount = r.value.size
+            is ApiResult.Err -> Unit
         }
     }
 
@@ -88,7 +107,7 @@ fun HomeScreen(
                         .clickableNoRipple(onOpenSettings),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.MedicalServices, contentDescription = "Medical profile", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -151,9 +170,8 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    StatCell("3", "Contacts")
-                    StatCell("2", "Trips today")
-                    StatCell("0", "Incidents")
+                    StatCell(contactCount?.toString() ?: "—", "Contacts")
+                    StatCell(incidentCount?.toString() ?: "—", "Incidents")
                 }
             }
 
@@ -162,6 +180,7 @@ fun HomeScreen(
                 if (monitoring) {
                     LiveLocationMap(
                         position = livePosition,
+                        waitingForFix = locationPermission.isGranted.value,
                         placeholderText = if (locationPermission.isGranted.value) {
                             "Waiting for a GPS fix…"
                         } else {
@@ -241,7 +260,17 @@ fun HomeScreen(
             SectionTitle("Go to")
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 24.dp)) {
                 NavTile(Icons.Filled.Radio, "Situation Room", "Live incident view and responder updates", onOpenSituationRoom)
-                NavTile(Icons.Filled.People, "Emergency Contacts", "3 people notified when you can't respond", onOpenContacts)
+                NavTile(
+                    Icons.Filled.People,
+                    "Emergency Contacts",
+                    when (contactCount) {
+                        null -> "People notified when you can't respond"
+                        0 -> "No contacts yet — add someone who should be notified"
+                        1 -> "1 person notified when you can't respond"
+                        else -> "$contactCount people notified when you can't respond"
+                    },
+                    onOpenContacts,
+                )
                 NavTile(Icons.Filled.MonitorHeart, "Welfare Checks", "Every check StignIt has raised for you", onOpenWelfareHistory)
                 NavTile(Icons.AutoMirrored.Filled.MenuBook, "Safety Knowledge & Drills", "Practice the flow before you ever need it", onOpenSafety)
                 NavTile(Icons.Filled.DirectionsCar, "Simulate impact detection", "Preview the welfare check screen", onSimulateImpact)

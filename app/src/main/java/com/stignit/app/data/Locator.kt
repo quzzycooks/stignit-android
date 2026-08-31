@@ -40,6 +40,14 @@ fun rememberLocationRepository(): LocationRepository {
     }
 }
 
+@Composable
+fun rememberContactsRepository(): ContactsRepository {
+    val context = LocalContext.current
+    return remember(context) {
+        (context.applicationContext as StignItApplication).contactsRepository
+    }
+}
+
 /** Connection-lifecycle-scoped, unlike the repositories above — a fresh one per screen visit. */
 @Composable
 fun rememberIncidentSocket(): IncidentSocket {

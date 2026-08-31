@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.os.Build
 import com.mapbox.common.MapboxOptions
 import com.stignit.app.data.AuthRepository
+import com.stignit.app.data.ContactsRepository
 import com.stignit.app.data.IncidentRepository
 import com.stignit.app.data.LocationRepository
 import com.stignit.app.data.SessionStore
@@ -21,6 +22,7 @@ class StignItApplication : Application() {
     val incidentRepository: IncidentRepository by lazy { IncidentRepository(api, sessionStore) }
     val locationRepository: LocationRepository by lazy { LocationRepository(api, sessionStore) }
     val userRepository: UserRepository by lazy { UserRepository(api, sessionStore) }
+    val contactsRepository: ContactsRepository by lazy { ContactsRepository(api, sessionStore) }
 
     override fun onCreate() {
         super.onCreate()

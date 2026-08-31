@@ -72,6 +72,34 @@ fun NavTile(icon: ImageVector, label: String, hint: String, onClick: () -> Unit,
     }
 }
 
+/** Same layout as [NavTile] but inert — for reference info that isn't a tap target (no chevron implying navigation). */
+@Composable
+fun InfoTile(icon: ImageVector, label: String, hint: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Box(
+                modifier = Modifier.size(44.dp).background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(hint, fontSize = 14.sp, color = StignItExtraColors.mutedForeground, maxLines = 2)
+            }
+        }
+    }
+}
+
 enum class TimelineState { Done, Active, Pending }
 
 /** Mirrors TimelineItem in pieces.tsx: icon dot + connecting line + title/meta. */

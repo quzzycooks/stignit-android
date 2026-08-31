@@ -17,6 +17,13 @@ data class IncidentDetails(
     val status: String,
     val createdAt: String,
 )
+data class IncidentHistoryItem(
+    val incidentId: String,
+    val incidentType: String,
+    val status: String,
+    val createdAt: String,
+    val closedAt: String?,
+)
 
 class IncidentRepository(
     private val api: StignitApi,
@@ -51,6 +58,16 @@ class IncidentRepository(
         return apiCall {
             val res = api.getIncident(bearer, incidentId)
             IncidentDetails(res.incidentId, res.triggeringUserId, res.status, res.createdAt)
+        }
+    }
+
+    /** Caller's own incident history, most recent first — backs the welfare-check history screen. */
+    suspend fun getMyIncidents(): ApiResult<List<IncidentHistoryItem>> {
+        val bearer = session.bearer() ?: return ApiResult.Ok(emptyList())
+        return apiCall {
+            api.getMyIncidents(bearer).map {
+                IncidentHistoryItem(it.incidentId, it.incidentType, it.status, it.createdAt, it.closedAt)
+            }
         }
     }
 }

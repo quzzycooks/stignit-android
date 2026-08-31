@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,6 +26,7 @@ import com.stignit.app.ui.components.BottomNavTab
 import com.stignit.app.ui.contacts.ContactsScreen
 import com.stignit.app.ui.home.HomeScreen
 import com.stignit.app.ui.onboarding.OnboardingScreen
+import com.stignit.app.ui.safety.DrillGuideDetailScreen
 import com.stignit.app.ui.safety.SafetyScreen
 import com.stignit.app.ui.settings.SettingsScreen
 import com.stignit.app.ui.situationroom.SituationRoomScreen
@@ -45,6 +47,8 @@ private object Routes {
     fun situationRoom(incidentId: String) = "situation_room/$incidentId"
     const val Contacts = "contacts"
     const val Safety = "safety"
+    const val SafetyGuide = "safety_guide/{guideId}"
+    fun safetyGuide(guideId: String) = "safety_guide/$guideId"
     const val WelfareHistory = "welfare_history"
 }
 
@@ -89,13 +93,23 @@ fun StignItNavHost() {
         }
     }
 
+    // Switches to a tab's root without piling copies onto the back stack — same
+    // single-top/save-and-restore pattern as any standard bottom-nav setup.
+    fun navigateToTabRoot(route: String) {
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     // Shared handler so tapping a BottomNav tab from any screen behaves the same way.
     fun onTabSelect(tab: BottomNavTab) {
         when (tab) {
-            BottomNavTab.Home -> navController.navigate(Routes.Home)
+            BottomNavTab.Home -> navigateToTabRoot(Routes.Home)
             BottomNavTab.Situation -> openActiveSituationRoom()
-            BottomNavTab.Contacts -> navController.navigate(Routes.Contacts)
-            BottomNavTab.Safety -> navController.navigate(Routes.Safety)
+            BottomNavTab.Contacts -> navigateToTabRoot(Routes.Contacts)
+            BottomNavTab.Safety -> navigateToTabRoot(Routes.Safety)
         }
     }
 
@@ -193,8 +207,18 @@ fun StignItNavHost() {
             SafetyScreen(
                 onBack = { navController.popBackStack() },
                 onStartDrill = { navController.navigate(Routes.WelfareCheck) },
+                onOpenGuide = { guideId -> navController.navigate(Routes.safetyGuide(guideId)) },
                 currentTab = BottomNavTab.Safety,
                 onSelectTab = ::onTabSelect,
+            )
+        }
+        composable(
+            Routes.SafetyGuide,
+            arguments = listOf(navArgument("guideId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            DrillGuideDetailScreen(
+                guideId = backStackEntry.arguments?.getString("guideId").orEmpty(),
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.WelfareHistory) {
