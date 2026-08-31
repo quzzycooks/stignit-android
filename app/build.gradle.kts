@@ -1,7 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val mapboxAccessToken: String = localProps.getProperty("MAPBOX_ACCESS_TOKEN") ?: ""
 
 android {
     namespace = "com.stignit.app"
@@ -26,6 +34,7 @@ android {
                 "API_BASE_URL",
                 "\"https://stgv3-production.up.railway.app/\"",
             )
+            buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxAccessToken\"")
         }
         release {
             isMinifyEnabled = false
@@ -35,6 +44,7 @@ android {
                 "API_BASE_URL",
                 "\"https://stgv3-production.up.railway.app/\"",
             )
+            buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxAccessToken\"")
         }
     }
 
@@ -76,4 +86,12 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // Live location tracking (Mapbox map rendering, device GPS, /rt WebSocket).
+    implementation("com.mapbox.maps:android:11.9.1")
+    implementation("com.mapbox.extension:maps-compose:11.9.1")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("io.socket:socket.io-client:2.1.1") {
+        exclude(group = "org.json", module = "json")
+    }
 }

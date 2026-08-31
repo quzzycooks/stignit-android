@@ -40,6 +40,10 @@ class SessionStore(context: Context) {
         get() = prefs.getBoolean(KEY_REG_COMPLETE, false)
         private set(v) = prefs.edit().putBoolean(KEY_REG_COMPLETE, v).apply()
 
+    var fullName: String?
+        get() = prefs.getString(KEY_FULL_NAME, null)
+        private set(v) = prefs.edit().putString(KEY_FULL_NAME, v).apply()
+
     val isSignedIn: Boolean get() = accessToken != null
 
     fun bearer(): String? = accessToken?.let { "Bearer $it" }
@@ -53,8 +57,17 @@ class SessionStore(context: Context) {
             .apply()
     }
 
-    fun markRegistrationComplete() {
+    /** Rotates just the JWT pair after a [/auth/refresh] call — leaves who-the-user-is untouched. */
+    fun updateTokens(accessToken: String, refreshToken: String) {
+        prefs.edit()
+            .putString(KEY_ACCESS, accessToken)
+            .putString(KEY_REFRESH, refreshToken)
+            .apply()
+    }
+
+    fun markRegistrationComplete(fullName: String) {
         registrationComplete = true
+        this.fullName = fullName
     }
 
     fun clear() = prefs.edit().clear().apply()
@@ -64,5 +77,6 @@ class SessionStore(context: Context) {
         const val KEY_REFRESH = "refresh_token"
         const val KEY_USER_ID = "user_id"
         const val KEY_REG_COMPLETE = "registration_complete"
+        const val KEY_FULL_NAME = "full_name"
     }
 }

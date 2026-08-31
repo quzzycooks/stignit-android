@@ -38,7 +38,8 @@ private const val CODE_LEN = 6
  */
 @Composable
 fun OtpScreen(
-    phone: String,
+    identifier: String,
+    isEmail: Boolean,
     initialDevCode: String?,
     initialResendInSec: Int,
     onVerified: (registrationComplete: Boolean) -> Unit,
@@ -64,10 +65,11 @@ fun OtpScreen(
         submitting = true
         error = null
         scope.launch {
-            when (val r = repo.verifyOtp(phone, code)) {
-                is ApiResult.Ok -> onVerified(r.value.registrationComplete)
+            val result = if (isEmail) repo.verifyEmailOtp(identifier, code) else repo.verifyOtp(identifier, code)
+            when (result) {
+                is ApiResult.Ok -> onVerified(result.value.registrationComplete)
                 is ApiResult.Err -> {
-                    error = r.message
+                    error = result.message
                     code = ""
                     submitting = false
                     focus.requestFocus()
@@ -80,12 +82,13 @@ fun OtpScreen(
         if (resendIn > 0 || submitting) return
         error = null
         scope.launch {
-            when (val r = repo.requestOtp(phone)) {
+            val result = if (isEmail) repo.requestEmailOtp(identifier) else repo.requestOtp(identifier)
+            when (result) {
                 is ApiResult.Ok -> {
-                    devCode = r.value.devCode
-                    resendIn = r.value.resendInSec
+                    devCode = result.value.devCode
+                    resendIn = result.value.resendInSec
                 }
-                is ApiResult.Err -> error = r.message
+                is ApiResult.Err -> error = result.message
             }
         }
     }
@@ -99,7 +102,7 @@ fun OtpScreen(
         Spacer(Modifier.height(8.dp))
         Text("Enter the 6-digit code", fontSize = 28.sp, fontWeight = FontWeight.Bold, lineHeight = 34.sp)
         Text(
-            "We sent it by SMS to $phone.",
+            if (isEmail) "We sent it to $identifier." else "We sent it by SMS to $identifier.",
             modifier = Modifier.padding(top = 8.dp),
             fontSize = 16.sp,
             color = StignItExtraColors.mutedForeground,

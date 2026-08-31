@@ -19,6 +19,12 @@ data class RequestOtpResponse(
 // --- POST /v1/auth/otp/verify ---
 data class VerifyOtpBody(val phone: String, val code: String)
 
+// --- POST /v1/auth/otp/email/request ---
+data class RequestEmailOtpBody(val email: String)
+
+// --- POST /v1/auth/otp/email/verify ---
+data class VerifyEmailOtpBody(val email: String, val code: String)
+
 data class VerifyOtpResponse(
     val accessToken: String,
     val refreshToken: String,
@@ -26,6 +32,15 @@ data class VerifyOtpResponse(
     val userId: String,
     val accessLevel: String,
     val registrationComplete: Boolean,
+)
+
+// --- POST /v1/auth/refresh ---
+data class RefreshBody(val refreshToken: String)
+
+data class RefreshResponse(
+    val accessToken: String,
+    val refreshToken: String,
+    val expiresIn: Int,
 )
 
 // --- POST /v1/users/register ---
@@ -46,6 +61,48 @@ data class RegisterBody(
 )
 
 data class RegisterResponse(val id: String, val accessLevel: String)
+
+// --- POST /v1/incidents ---
+data class GpsBody(val lat: Double, val lng: Double, val accuracyMeters: Float? = null)
+
+data class CreateIncidentBody(
+    val incidentType: String,
+    val gps: GpsBody? = null,
+    val locationSource: String? = null,
+)
+
+data class CreateIncidentResponse(val incidentId: String, val status: String)
+
+// --- GET /v1/incidents/mine/active ---
+data class ActiveIncidentResponse(val incidentId: String?, val status: String?)
+
+// --- GET /v1/incidents/{incidentId} ---
+data class IncidentDetailsResponse(
+    val incidentId: String,
+    val triggeringUserId: String?,
+    val status: String,
+    val createdAt: String,
+)
+
+// --- POST /v1/incidents/location ---
+data class UpdateLocationBody(val gps: GpsBody)
+data class UpdateLocationResponse(val ok: Boolean)
+
+// --- GET/PUT /v1/users/me ---
+data class MedicalInfoBody(
+    val bloodType: String? = null,
+    val conditions: List<String>? = null,
+    val medications: List<String>? = null,
+    val allergies: List<String>? = null,
+)
+
+data class UpdateProfileBody(val medicalInfo: MedicalInfoBody)
+
+data class MeResponse(
+    val fullName: String?,
+    val medicalInfo: MedicalInfoBody?,
+    val medicalInfoComplete: Boolean,
+)
 
 /** NestJS error envelope ({ statusCode, message, error }). `message` can be a string or string[]. */
 data class ApiErrorBody(

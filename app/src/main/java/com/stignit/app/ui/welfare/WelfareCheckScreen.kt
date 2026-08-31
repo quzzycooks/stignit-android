@@ -16,36 +16,92 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.stignit.app.data.ApiResult
+import com.stignit.app.data.DRILL_INCIDENT_ID
+import com.stignit.app.data.rememberIncidentRepository
+import com.stignit.app.location.LocationTracker
 import com.stignit.app.ui.components.Screen
 import com.stignit.app.ui.components.ScreenTone
 import com.stignit.app.ui.components.StignItButton
 import com.stignit.app.ui.components.StignItButtonSize
 import com.stignit.app.ui.components.StignItButtonVariant
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+private const val INCIDENT_TYPE_UNKNOWN = "UNKNOWN"
 
 /**
  * Direct port of src/routes/welfare-check.tsx — the highest-stakes screen
  * in the app. Full-bleed danger-red background, large countdown, two
- * unmistakable actions. Location text is a placeholder here — milestone 4
- * wires this to the real GPS reading.
+ * unmistakable actions.
+ *
+ * GPS must never block getting help: [LocationTracker.bestEffortFix] tries a
+ * cached fix first (near-instant), falls back to a short-timeout fresh fix,
+ * and the incident is created either way — even with no location at all.
+ *
+ * [isDrill] short-circuits all of that: no real incident, no location call, no
+ * emergency-contact SMS — just the countdown UI. Every current entry point
+ * (Home's "Simulate impact", Safety's "Start Drill") is a drill; a real
+ * crash-trigger entry point would pass `isDrill = false`.
  */
 @Composable
 fun WelfareCheckScreen(
     onImOk: () -> Unit,
-    onGetHelp: () -> Unit,
+    onGetHelp: (incidentId: String) -> Unit,
+    isDrill: Boolean = true,
 ) {
     var seconds by remember { mutableStateOf(30) }
+    var triggering by remember { mutableStateOf(false) }
+    var triggerError by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val locationTracker = remember(context) { LocationTracker(context) }
+    val incidents = rememberIncidentRepository()
+    val scope = rememberCoroutineScope()
+
+    fun triggerHelp() {
+        if (triggering) return
+        if (isDrill) {
+            onGetHelp(DRILL_INCIDENT_ID)
+            return
+        }
+        triggering = true
+        triggerError = null
+        scope.launch {
+            val fix = locationTracker.bestEffortFix()
+            // Never give up silently — a real emergency can't dead-end on a flaky network.
+            var attempt = 0
+            while (true) {
+                when (val r = incidents.createIncident(INCIDENT_TYPE_UNKNOWN, fix)) {
+                    is ApiResult.Ok -> {
+                        onGetHelp(r.value.incidentId)
+                        return@launch
+                    }
+                    is ApiResult.Err -> {
+                        attempt++
+                        if (attempt >= 4) {
+                            triggering = false
+                            triggerError = "Couldn't reach StignIt — ${r.message} Tap to try again."
+                            return@launch
+                        }
+                        delay(1500L * attempt)
+                    }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(seconds) {
         if (seconds > 0) {
             delay(1000)
             seconds -= 1
         } else {
-            onGetHelp() // countdown hit zero -> auto-escalate, same as navigate("/situation-room")
+            triggerHelp() // countdown hit zero -> auto-escalate
         }
     }
 
@@ -133,7 +189,25 @@ fun WelfareCheckScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(16.dp))
-                Text("Third Mainland Bridge, Lagos", fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f))
+                Text(
+                    when {
+                        isDrill -> "Drill mode — no real alert will be sent"
+                        triggering -> "Getting your location…"
+                        else -> "Your live location is shared if you need help"
+                    },
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+
+            if (triggerError != null) {
+                Text(
+                    triggerError!!,
+                    modifier = Modifier.padding(top = 12.dp).fillMaxWidth(0.85f),
+                    fontSize = 14.sp,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
 
@@ -148,8 +222,8 @@ fun WelfareCheckScreen(
                 size = StignItButtonSize.ExtraLarge,
             )
             StignItButton(
-                text = "Get help now",
-                onClick = onGetHelp,
+                text = if (triggering) "Getting help…" else if (triggerError != null) "Retry — get help now" else "Get help now",
+                onClick = { triggerHelp() },
                 variant = StignItButtonVariant.Outline,
                 size = StignItButtonSize.ExtraLarge,
                 leadingIcon = { Icon(Icons.Filled.Phone, contentDescription = null) },

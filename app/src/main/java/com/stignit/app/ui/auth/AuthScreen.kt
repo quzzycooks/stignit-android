@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Patterns
 import com.stignit.app.data.ApiResult
 import com.stignit.app.data.rememberAuthRepository
 import com.stignit.app.ui.components.Screen
@@ -30,7 +31,9 @@ import kotlinx.coroutines.launch
 private enum class AuthMode { Phone, Email }
 
 @Composable
-fun AuthScreen(onCodeSent: (phone: String, devCode: String?, resendInSec: Int) -> Unit) {
+fun AuthScreen(
+    onCodeSent: (identifier: String, isEmail: Boolean, devCode: String?, resendInSec: Int) -> Unit,
+) {
     var mode by remember { mutableStateOf(AuthMode.Phone) }
     var value by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -41,23 +44,26 @@ fun AuthScreen(onCodeSent: (phone: String, devCode: String?, resendInSec: Int) -
 
     fun sendCode() {
         error = null
-        if (mode == AuthMode.Email) {
-            error = "Email sign-in isn't available yet — use your phone number."
-            return
-        }
-        if (value.trim().length < 10) {
+        val isEmail = mode == AuthMode.Email
+        if (isEmail) {
+            if (!Patterns.EMAIL_ADDRESS.matcher(value.trim()).matches()) {
+                error = "Enter a valid email address."
+                return
+            }
+        } else if (value.trim().length < 10) {
             error = "Enter a valid mobile number."
             return
         }
         submitting = true
         scope.launch {
-            when (val r = repo.requestOtp(value)) {
+            val result = if (isEmail) repo.requestEmailOtp(value) else repo.requestOtp(value)
+            when (result) {
                 is ApiResult.Ok -> {
                     submitting = false
-                    onCodeSent(value.trim(), r.value.devCode, r.value.resendInSec)
+                    onCodeSent(value.trim(), isEmail, result.value.devCode, result.value.resendInSec)
                 }
                 is ApiResult.Err -> {
-                    error = r.message
+                    error = result.message
                     submitting = false
                 }
             }

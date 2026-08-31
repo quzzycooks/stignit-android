@@ -11,9 +11,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.stignit.app.data.ApiResult
+import com.stignit.app.data.rememberLocationRepository
+import com.stignit.app.data.rememberUserRepository
+import com.stignit.app.location.LocationTracker
+import com.stignit.app.location.rememberLocationPermissionState
 import com.stignit.app.ui.components.*
 import com.stignit.app.ui.theme.StignItExtraColors
 
@@ -24,14 +30,46 @@ import com.stignit.app.ui.theme.StignItExtraColors
  */
 @Composable
 fun HomeScreen(
+    userName: String,
     onOpenSituationRoom: () -> Unit,
     onOpenContacts: () -> Unit,
     onOpenWelfareHistory: () -> Unit,
     onOpenSafety: () -> Unit,
     onSimulateImpact: () -> Unit,
+    onOpenSettings: () -> Unit,
     onSelectTab: (BottomNavTab) -> Unit,
 ) {
     var monitoring by remember { mutableStateOf(true) }
+
+    val userRepo = rememberUserRepository()
+    var showMedicalReminder by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        when (val r = userRepo.getMe()) {
+            is ApiResult.Ok -> showMedicalReminder = !r.value.medicalInfoComplete
+            is ApiResult.Err -> Unit // not worth surfacing on Home; Settings will show it if visited
+        }
+    }
+
+    val context = LocalContext.current
+    val locationTracker = remember(context) { LocationTracker(context) }
+    val locationRepo = rememberLocationRepository()
+    val locationPermission = rememberLocationPermissionState()
+    var livePosition by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+
+    LaunchedEffect(monitoring) {
+        if (!monitoring) {
+            livePosition = null
+            return@LaunchedEffect
+        }
+        if (!locationPermission.isGranted.value) locationPermission.request()
+    }
+    LaunchedEffect(monitoring, locationPermission.isGranted.value) {
+        if (!monitoring || !locationPermission.isGranted.value) return@LaunchedEffect
+        locationTracker.locationUpdates().collect { loc ->
+            livePosition = loc.latitude to loc.longitude
+            locationRepo.pushLocation(loc.latitude, loc.longitude, loc.accuracy)
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Screen(modifier = Modifier.weight(1f)) {
@@ -42,14 +80,45 @@ fun HomeScreen(
             ) {
                 Column {
                     Text("Good morning,", fontSize = 14.sp, color = StignItExtraColors.mutedForeground)
-                    Text("Adaeze", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(userName, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
                 Box(
                     modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.secondary),
+                        .background(MaterialTheme.colorScheme.secondary)
+                        .clickableNoRipple(onOpenSettings),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                }
+            }
+
+            if (showMedicalReminder) {
+                Panel(tone = PanelTone.Muted) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Finish your medical profile", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Helps a verified responder treat you correctly during an incident.",
+                                modifier = Modifier.padding(top = 2.dp),
+                                fontSize = 13.sp,
+                                color = StignItExtraColors.mutedForeground,
+                            )
+                        }
+                        Text(
+                            "Add",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickableNoRipple(onOpenSettings),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Dismiss",
+                            tint = StignItExtraColors.mutedForeground,
+                            modifier = Modifier.size(18.dp).clickableNoRipple { showMedicalReminder = false },
+                        )
+                    }
                 }
             }
 
@@ -85,6 +154,27 @@ fun HomeScreen(
                     StatCell("3", "Contacts")
                     StatCell("2", "Trips today")
                     StatCell("0", "Incidents")
+                }
+            }
+
+            SectionTitle("Your location")
+            Panel {
+                if (monitoring) {
+                    LiveLocationMap(
+                        position = livePosition,
+                        placeholderText = if (locationPermission.isGranted.value) {
+                            "Waiting for a GPS fix…"
+                        } else {
+                            "Location permission needed to show your position"
+                        },
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(80.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("Location paused — turn monitoring on to see it here", color = StignItExtraColors.mutedForeground)
+                    }
                 }
             }
 

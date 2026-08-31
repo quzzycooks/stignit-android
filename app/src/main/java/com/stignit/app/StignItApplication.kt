@@ -4,18 +4,27 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import com.mapbox.common.MapboxOptions
 import com.stignit.app.data.AuthRepository
+import com.stignit.app.data.IncidentRepository
+import com.stignit.app.data.LocationRepository
 import com.stignit.app.data.SessionStore
+import com.stignit.app.data.UserRepository
 import com.stignit.app.data.net.ApiProvider
 
 class StignItApplication : Application() {
 
     // Lightweight service locator — no DI framework for a project this size.
     val sessionStore: SessionStore by lazy { SessionStore(this) }
-    val authRepository: AuthRepository by lazy { AuthRepository(ApiProvider.api, sessionStore) }
+    private val api by lazy { ApiProvider.create(sessionStore) }
+    val authRepository: AuthRepository by lazy { AuthRepository(api, sessionStore) }
+    val incidentRepository: IncidentRepository by lazy { IncidentRepository(api, sessionStore) }
+    val locationRepository: LocationRepository by lazy { LocationRepository(api, sessionStore) }
+    val userRepository: UserRepository by lazy { UserRepository(api, sessionStore) }
 
     override fun onCreate() {
         super.onCreate()
+        MapboxOptions.accessToken = BuildConfig.MAPBOX_ACCESS_TOKEN
         createDetectionNotificationChannel()
     }
 
