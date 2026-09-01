@@ -41,6 +41,10 @@ fun parseApiError(e: HttpException): String {
         429 ->
             if (fromApi) "Too many attempts. Wait a moment and try again."
             else "StignIt's servers are busy right now. Try again in a minute."
+        // 503 is a known, foreseeable failure the backend deliberately threw with a
+        // real explanation (e.g. SMS delivery down) — show it. A bare 500 is an
+        // unhandled crash with no useful message, so keep the generic reassurance.
+        503 -> apiMessage ?: "StignIt's servers are having trouble. Try again shortly."
         in 500..599 -> "StignIt's servers are having trouble. Try again shortly."
         else -> apiMessage ?: "Request failed (${e.code()})."
     }
