@@ -23,7 +23,7 @@ import com.stignit.app.ui.components.*
 import com.stignit.app.ui.theme.StignItExtraColors
 
 @Composable
-fun DrillGuideDetailScreen(guideId: String, onBack: () -> Unit) {
+fun DrillGuideDetailScreen(guideId: String, onBack: () -> Unit, onSelectTab: (BottomNavTab) -> Unit) {
     val guide = DRILL_GUIDES.find { it.id == guideId }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -82,7 +82,7 @@ fun DrillGuideDetailScreen(guideId: String, onBack: () -> Unit) {
                 }
             }
         }
-        BottomNav(current = BottomNavTab.Safety, onSelect = {})
+        BottomNav(current = BottomNavTab.Safety, onSelect = onSelectTab)
     }
 }
 

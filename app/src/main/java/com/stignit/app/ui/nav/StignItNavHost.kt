@@ -219,6 +219,7 @@ fun StignItNavHost() {
             DrillGuideDetailScreen(
                 guideId = backStackEntry.arguments?.getString("guideId").orEmpty(),
                 onBack = { navController.popBackStack() },
+                onSelectTab = ::onTabSelect,
             )
         }
         composable(Routes.WelfareHistory) {
