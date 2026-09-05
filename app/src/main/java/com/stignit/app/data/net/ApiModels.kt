@@ -146,6 +146,7 @@ data class MeResponse(
     val medicalInfo: MedicalInfoBody?,
     val medicalInfoComplete: Boolean,
     val role: String? = null,
+    val proximityAlertsEnabled: Boolean = false,
 )
 
 /** NestJS error envelope ({ statusCode, message, error }). `message` can be a string or string[]. */

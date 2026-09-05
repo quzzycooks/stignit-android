@@ -21,7 +21,12 @@ data class MedicalInfo(
     )
 }
 
-data class Profile(val fullName: String?, val medicalInfo: MedicalInfo?, val medicalInfoComplete: Boolean)
+data class Profile(
+    val fullName: String?,
+    val medicalInfo: MedicalInfo?,
+    val medicalInfoComplete: Boolean,
+    val proximityAlertsEnabled: Boolean,
+)
 
 class UserRepository(
     private val api: StignitApi,
@@ -37,6 +42,7 @@ class UserRepository(
                     MedicalInfo(it.bloodType, it.conditions.orEmpty(), it.medications.orEmpty(), it.allergies.orEmpty())
                 },
                 medicalInfoComplete = res.medicalInfoComplete,
+                proximityAlertsEnabled = res.proximityAlertsEnabled,
             )
         }
     }

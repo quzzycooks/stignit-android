@@ -54,7 +54,19 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         when (val r = repo.getMe()) {
-            is ApiResult.Ok -> draft = MedicalInfoDraft(r.value.medicalInfo ?: MedicalInfo())
+            is ApiResult.Ok -> {
+                draft = MedicalInfoDraft(r.value.medicalInfo ?: MedicalInfo())
+                // Local cache can be stale (fresh install, or toggled from another
+                // device) — the server's copy is the source of truth for whether
+                // ambient location reporting should actually be running.
+                val serverValue = r.value.proximityAlertsEnabled
+                if (serverValue != session.proximityAlertsEnabled) {
+                    session.proximityAlertsEnabled = serverValue
+                    proximityAlertsEnabled = serverValue
+                    val app = context.applicationContext as StignItApplication
+                    if (serverValue) app.startProximityLocationWork() else app.stopProximityLocationWork()
+                }
+            }
             is ApiResult.Err -> error = r.message
         }
         loading = false
