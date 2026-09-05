@@ -4,6 +4,9 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.mapbox.common.MapboxOptions
 import com.stignit.app.data.AuthRepository
 import com.stignit.app.data.ContactsRepository
@@ -12,6 +15,8 @@ import com.stignit.app.data.LocationRepository
 import com.stignit.app.data.SessionStore
 import com.stignit.app.data.UserRepository
 import com.stignit.app.data.net.ApiProvider
+import com.stignit.app.location.ProximityLocationWorker
+import java.util.concurrent.TimeUnit
 
 class StignItApplication : Application() {
 
@@ -28,6 +33,24 @@ class StignItApplication : Application() {
         super.onCreate()
         MapboxOptions.accessToken = BuildConfig.MAPBOX_ACCESS_TOKEN
         createDetectionNotificationChannel()
+        createProximityAlertChannel()
+        // Idempotent (ExistingPeriodicWorkPolicy.UPDATE) — safe to call every
+        // process start. Resumes reporting after an app/device restart if the
+        // user had proximity alerts on last session.
+        if (sessionStore.proximityAlertsEnabled) startProximityLocationWork()
+    }
+
+    fun startProximityLocationWork() {
+        val request = PeriodicWorkRequestBuilder<ProximityLocationWorker>(15, TimeUnit.MINUTES).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            ProximityLocationWorker.UNIQUE_WORK_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request,
+        )
+    }
+
+    fun stopProximityLocationWork() {
+        WorkManager.getInstance(this).cancelUniqueWork(ProximityLocationWorker.UNIQUE_WORK_NAME)
     }
 
     private fun createDetectionNotificationChannel() {
@@ -44,7 +67,22 @@ class StignItApplication : Application() {
         }
     }
 
+    private fun createProximityAlertChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                PROXIMITY_ALERT_CHANNEL_ID,
+                "Nearby Incidents",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "Alerts you when an incident is reported near you."
+            }
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+    }
+
     companion object {
         const val DETECTION_CHANNEL_ID = "stignit_detection_channel"
+        const val PROXIMITY_ALERT_CHANNEL_ID = "stignit_proximity_channel"
     }
 }

@@ -21,6 +21,7 @@ import com.stignit.app.data.rememberIncidentRepository
 import com.stignit.app.data.sessionStore
 import com.stignit.app.detection.CrashSignal
 import com.stignit.app.detection.DetectionConfidence
+import com.stignit.app.notifications.ProximityAlertSignal
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.stignit.app.ui.auth.AuthScreen
@@ -31,6 +32,7 @@ import com.stignit.app.ui.auth.RoleSelectScreen
 import com.stignit.app.ui.components.BottomNavTab
 import com.stignit.app.ui.contacts.ContactsScreen
 import com.stignit.app.ui.home.HomeScreen
+import com.stignit.app.ui.incident.DeclareRoleScreen
 import com.stignit.app.ui.onboarding.OnboardingScreen
 import com.stignit.app.ui.safety.DrillGuideDetailScreen
 import com.stignit.app.ui.safety.SafetyScreen
@@ -55,6 +57,8 @@ private object Routes {
     fun welfareCheckReal() = "$WelfareCheckBase?real=true"
     const val SituationRoom = "situation_room/{incidentId}"
     fun situationRoom(incidentId: String) = "situation_room/$incidentId"
+    const val DeclareRole = "declare_role/{incidentId}"
+    fun declareRole(incidentId: String) = "declare_role/$incidentId"
     const val Contacts = "contacts"
     const val Safety = "safety"
     const val SafetyGuide = "safety_guide/{guideId}"
@@ -72,7 +76,7 @@ private class PendingAuth {
 }
 
 @Composable
-fun StignItNavHost() {
+fun StignItNavHost(pendingIncidentId: String? = null) {
     val navController = rememberNavController()
     val context = LocalContext.current
     val session = context.sessionStore()
@@ -133,6 +137,23 @@ fun StignItNavHost() {
                 navController.navigate(Routes.welfareCheckReal())
             }
         }
+    }
+
+    // StignItMessagingService has no NavController of its own either; a warm
+    // (foregrounded) app picks up a proximity alert here instead of via the
+    // notification's PendingIntent — see MainActivity for the cold-start path.
+    LaunchedEffect(Unit) {
+        ProximityAlertSignal.events.collectLatest { incidentId ->
+            navController.navigate(Routes.declareRole(incidentId))
+        }
+    }
+
+    // Cold start / warm-but-backgrounded relaunch from a notification tap — see
+    // MainActivity.incidentIdFrom. Keyed on the value itself so a genuinely new
+    // tap (a different or repeated incidentId push from MainActivity) re-fires,
+    // but recomposition alone does not.
+    LaunchedEffect(pendingIncidentId) {
+        pendingIncidentId?.let { navController.navigate(Routes.declareRole(it)) }
     }
 
     NavHost(navController = navController, startDestination = start) {
@@ -244,6 +265,23 @@ fun StignItNavHost() {
                 incidentId = backStackEntry.arguments?.getString("incidentId").orEmpty(),
                 onBack = { navController.popBackStack() },
                 onMarkSafe = { goHome() },
+            )
+        }
+        composable(
+            Routes.DeclareRole,
+            arguments = listOf(navArgument("incidentId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val incidentId = backStackEntry.arguments?.getString("incidentId").orEmpty()
+            DeclareRoleScreen(
+                onRoleDeclared = { role ->
+                    scope.launch {
+                        incidents.declareRole(incidentId, role)
+                        navController.navigate(Routes.situationRoom(incidentId)) {
+                            popUpTo(Routes.declareRole(incidentId)) { inclusive = true }
+                        }
+                    }
+                },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.Contacts) {

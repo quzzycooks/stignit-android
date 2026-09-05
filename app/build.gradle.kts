@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
 
 val localProps = Properties().apply {
@@ -94,4 +95,11 @@ dependencies {
     implementation("io.socket:socket.io-client:2.1.1") {
         exclude(group = "org.json", module = "json")
     }
+
+    // Proximity alerts: FCM push delivery + periodic background location reporting.
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    // Pinned to 2.9.1, not the latest — 2.10.x requires compileSdk 35, and this
+    // project is deliberately still on 34.
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }

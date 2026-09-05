@@ -2,9 +2,11 @@ package com.stignit.app.data
 
 import com.stignit.app.data.net.CreateIncidentBody
 import com.stignit.app.data.net.GpsBody
+import com.stignit.app.data.net.JoinIncidentBody
 import com.stignit.app.data.net.StignitApi
 import com.stignit.app.data.net.apiCall
 import com.stignit.app.location.LocationFix
+import retrofit2.HttpException
 
 /** Sentinel incidentId used by drill/simulate flows — never a real incident, never hits the backend. */
 const val DRILL_INCIDENT_ID = "DRILL"
@@ -68,6 +70,21 @@ class IncidentRepository(
             api.getMyIncidents(bearer).map {
                 IncidentHistoryItem(it.incidentId, it.incidentType, it.status, it.createdAt, it.closedAt)
             }
+        }
+    }
+
+    /**
+     * Declares why someone is joining a Situation Room they didn't trigger —
+     * `role` is `"victim"` or `"observer"` (see [com.stignit.app.ui.incident.DeclareRoleScreen]).
+     * Never called for the person who actually triggered the incident — that
+     * auto-assignment happens server-side, no client call needed.
+     */
+    suspend fun declareRole(incidentId: String, role: String): ApiResult<Unit> {
+        val bearer = session.bearer()
+            ?: return ApiResult.Err("Your session expired — sign in again.")
+        return apiCall {
+            val res = api.joinIncident(bearer, incidentId, JoinIncidentBody(role))
+            if (!res.isSuccessful) throw HttpException(res)
         }
     }
 }

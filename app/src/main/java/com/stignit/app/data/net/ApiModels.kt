@@ -122,6 +122,12 @@ data class IncidentHistoryEntry(
 data class UpdateLocationBody(val gps: GpsBody)
 data class UpdateLocationResponse(val ok: Boolean)
 
+// --- PUT /v1/users/me/fcm-token ---
+data class FcmTokenBody(val token: String)
+
+// --- POST /v1/incidents/{incidentId}/join ---
+data class JoinIncidentBody(val role: String)
+
 // --- GET/PUT /v1/users/me ---
 data class MedicalInfoBody(
     val bloodType: String? = null,
@@ -130,7 +136,10 @@ data class MedicalInfoBody(
     val allergies: List<String>? = null,
 )
 
-data class UpdateProfileBody(val medicalInfo: MedicalInfoBody)
+data class UpdateProfileBody(
+    val medicalInfo: MedicalInfoBody? = null,
+    val proximityAlertsEnabled: Boolean? = null,
+)
 
 data class MeResponse(
     val fullName: String?,

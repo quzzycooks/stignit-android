@@ -57,6 +57,25 @@ interface StignitApi {
         @Body body: UpdateLocationBody,
     ): UpdateLocationResponse
 
+    @PUT("v1/users/me/location")
+    suspend fun updateMyLocation(
+        @Header("Authorization") bearer: String,
+        @Body body: UpdateLocationBody,
+    ): Response<Unit>
+
+    @PUT("v1/users/me/fcm-token")
+    suspend fun updateFcmToken(
+        @Header("Authorization") bearer: String,
+        @Body body: FcmTokenBody,
+    ): Response<Unit>
+
+    @POST("v1/incidents/{incidentId}/join")
+    suspend fun joinIncident(
+        @Header("Authorization") bearer: String,
+        @Path("incidentId") incidentId: String,
+        @Body body: JoinIncidentBody,
+    ): Response<Unit>
+
     @GET("v1/users/me")
     suspend fun getMe(@Header("Authorization") bearer: String): MeResponse
 

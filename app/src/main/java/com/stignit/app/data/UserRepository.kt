@@ -1,5 +1,6 @@
 package com.stignit.app.data
 
+import com.stignit.app.data.net.FcmTokenBody
 import com.stignit.app.data.net.MedicalInfoBody
 import com.stignit.app.data.net.StignitApi
 import com.stignit.app.data.net.UpdateProfileBody
@@ -43,7 +44,24 @@ class UserRepository(
     suspend fun updateMedicalInfo(info: MedicalInfo): ApiResult<Unit> {
         val bearer = session.bearer() ?: return ApiResult.Err("Not signed in.")
         return apiCall {
-            val res = api.updateProfile(bearer, UpdateProfileBody(info.toBody()))
+            val res = api.updateProfile(bearer, UpdateProfileBody(medicalInfo = info.toBody()))
+            if (!res.isSuccessful) throw HttpException(res)
+        }
+    }
+
+    /** Server-side mirror of the local toggle — the backend gates the proximity-match query on this. */
+    suspend fun updateProximityAlertsEnabled(enabled: Boolean): ApiResult<Unit> {
+        val bearer = session.bearer() ?: return ApiResult.Err("Not signed in.")
+        return apiCall {
+            val res = api.updateProfile(bearer, UpdateProfileBody(proximityAlertsEnabled = enabled))
+            if (!res.isSuccessful) throw HttpException(res)
+        }
+    }
+
+    suspend fun updateFcmToken(token: String): ApiResult<Unit> {
+        val bearer = session.bearer() ?: return ApiResult.Err("Not signed in.")
+        return apiCall {
+            val res = api.updateFcmToken(bearer, FcmTokenBody(token))
             if (!res.isSuccessful) throw HttpException(res)
         }
     }

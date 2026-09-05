@@ -48,6 +48,13 @@ class SessionStore(context: Context) {
         get() = AccountRole.fromWire(prefs.getString(KEY_ROLE, null))
         private set(v) = prefs.edit().putString(KEY_ROLE, v.name).apply()
 
+    // Separate from crash-detection monitoring — a user can have one without the
+    // other. Opt-in, defaults false. Publicly settable (unlike the props above)
+    // since a Settings toggle mutates this directly, not through a compound flow.
+    var proximityAlertsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PROXIMITY_ALERTS, false)
+        set(v) = prefs.edit().putBoolean(KEY_PROXIMITY_ALERTS, v).apply()
+
     val isSignedIn: Boolean get() = accessToken != null
 
     fun bearer(): String? = accessToken?.let { "Bearer $it" }
@@ -84,5 +91,6 @@ class SessionStore(context: Context) {
         const val KEY_REG_COMPLETE = "registration_complete"
         const val KEY_FULL_NAME = "full_name"
         const val KEY_ROLE = "account_role"
+        const val KEY_PROXIMITY_ALERTS = "proximity_alerts_enabled"
     }
 }
