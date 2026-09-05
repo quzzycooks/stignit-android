@@ -5,17 +5,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.stignit.app.data.AccountRole
 import com.stignit.app.data.ApiResult
 import com.stignit.app.data.net.EmergencyContactBody
+import com.stignit.app.data.net.MedicalPersonnelProfileBody
+import com.stignit.app.data.net.ResponderProfileBody
 import com.stignit.app.data.rememberAuthRepository
 import com.stignit.app.ui.components.Screen
 import com.stignit.app.ui.components.clickableNoRipple
@@ -25,6 +30,13 @@ import com.stignit.app.ui.components.StignItButtonSize
 import com.stignit.app.ui.components.TopBar
 import com.stignit.app.ui.theme.StignItExtraColors
 import kotlinx.coroutines.launch
+
+private val equipmentOptions = listOf(
+    "defibrillator" to "Defibrillator",
+    "oxygen" to "Oxygen",
+    "trauma_kit" to "Trauma kit",
+    "neonatal" to "Neonatal",
+)
 
 private class ContactDraft {
     var name by mutableStateOf("")
@@ -44,6 +56,7 @@ private class ContactDraft {
  */
 @Composable
 fun RegisterScreen(
+    role: AccountRole,
     onRegistered: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -55,12 +68,25 @@ fun RegisterScreen(
     var stateLga by remember { mutableStateOf("") }
     val contacts = remember { mutableStateListOf(ContactDraft(), ContactDraft()) }
 
+    var licenseNumber by remember { mutableStateOf("") }
+    var medicalAffiliation by remember { mutableStateOf("") }
+
+    var vehicleType by remember { mutableStateOf("") }
+    var responderAffiliation by remember { mutableStateOf("") }
+    val selectedEquipment = remember { mutableStateListOf<String>() }
+    var otherEquipment by remember { mutableStateOf("") }
+
     var error by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
 
     val dobValid = Regex("""\d{4}-\d{2}-\d{2}""").matches(dob)
+    val roleFieldsValid = when (role) {
+        AccountRole.CIVILIAN -> true
+        AccountRole.MEDICAL_PERSONNEL -> licenseNumber.isNotBlank() && medicalAffiliation.isNotBlank()
+        AccountRole.DRIVER_RESPONDER -> vehicleType.isNotBlank() || responderAffiliation.isNotBlank()
+    }
     val canSubmit = fullName.isNotBlank() && dobValid && stateLga.isNotBlank() &&
-        contacts.count { it.isComplete } >= 2 && !submitting
+        contacts.count { it.isComplete } >= 2 && roleFieldsValid && !submitting
 
     fun submit() {
         if (!canSubmit) return
@@ -69,7 +95,18 @@ fun RegisterScreen(
         scope.launch {
             val bodies = contacts.filter { it.isComplete }
                 .mapIndexed { i, c -> c.toBody(i + 1) }
-            when (val r = repo.register(fullName, dob, stateLga, bodies)) {
+            val medicalProfile = if (role == AccountRole.MEDICAL_PERSONNEL) {
+                MedicalPersonnelProfileBody(licenseNumber.trim(), medicalAffiliation.trim())
+            } else null
+            val responderProfile = if (role == AccountRole.DRIVER_RESPONDER) {
+                val equipment = selectedEquipment.toList() + listOfNotNull(otherEquipment.trim().ifBlank { null })
+                ResponderProfileBody(
+                    vehicleType = vehicleType.trim().ifBlank { null },
+                    affiliation = responderAffiliation.trim().ifBlank { null },
+                    equipment = equipment,
+                )
+            } else null
+            when (val r = repo.register(fullName, dob, stateLga, bodies, role, medicalProfile, responderProfile)) {
                 is ApiResult.Ok -> onRegistered()
                 is ApiResult.Err -> {
                     error = r.message
@@ -146,6 +183,46 @@ fun RegisterScreen(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickableNoRipple { contacts.add(ContactDraft()) },
                 )
+            }
+
+            when (role) {
+                AccountRole.MEDICAL_PERSONNEL -> {
+                    SectionTitle("Professional details")
+                    Field("License / credential number", licenseNumber, { licenseNumber = it })
+                    Spacer(Modifier.height(12.dp))
+                    Field("Hospital / clinic affiliation", medicalAffiliation, { medicalAffiliation = it })
+                }
+                AccountRole.DRIVER_RESPONDER -> {
+                    SectionTitle("Vehicle details")
+                    Text(
+                        "At least one of these two.",
+                        fontSize = 13.sp,
+                        color = StignItExtraColors.mutedForeground,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                    Field("Vehicle type", vehicleType, { vehicleType = it }, placeholder = "e.g. Personal car")
+                    Spacer(Modifier.height(12.dp))
+                    Field("Ambulance service affiliation", responderAffiliation, { responderAffiliation = it })
+
+                    SectionTitle("Equipment on board")
+                    equipmentOptions.forEach { (key, label) ->
+                        val checked = selectedEquipment.contains(key)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickableNoRipple {
+                                    if (checked) selectedEquipment.remove(key) else selectedEquipment.add(key)
+                                },
+                        ) {
+                            Checkbox(checked = checked, onCheckedChange = null)
+                            Text(label, fontSize = 15.sp, modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Field("Other equipment (optional)", otherEquipment, { otherEquipment = it })
+                }
+                AccountRole.CIVILIAN -> Unit
             }
 
             if (error != null) {

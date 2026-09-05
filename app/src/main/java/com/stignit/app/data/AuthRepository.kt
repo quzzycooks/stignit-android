@@ -1,9 +1,11 @@
 package com.stignit.app.data
 
 import com.stignit.app.data.net.EmergencyContactBody
+import com.stignit.app.data.net.MedicalPersonnelProfileBody
 import com.stignit.app.data.net.RegisterBody
 import com.stignit.app.data.net.RequestEmailOtpBody
 import com.stignit.app.data.net.RequestOtpBody
+import com.stignit.app.data.net.ResponderProfileBody
 import com.stignit.app.data.net.StignitApi
 import com.stignit.app.data.net.VerifyEmailOtpBody
 import com.stignit.app.data.net.VerifyOtpBody
@@ -50,13 +52,27 @@ class AuthRepository(
         dateOfBirth: String,
         stateLga: String,
         contacts: List<EmergencyContactBody>,
+        role: AccountRole,
+        medicalPersonnelProfile: MedicalPersonnelProfileBody? = null,
+        responderProfile: ResponderProfileBody? = null,
     ): ApiResult<Unit> {
         val bearer = session.bearer()
             ?: return ApiResult.Err("Your session expired — verify your number again.")
         val trimmedName = fullName.trim()
         return apiCall {
-            api.register(bearer, RegisterBody(trimmedName, dateOfBirth, stateLga.trim(), contacts))
-            session.markRegistrationComplete(trimmedName)
+            api.register(
+                bearer,
+                RegisterBody(
+                    fullName = trimmedName,
+                    dateOfBirth = dateOfBirth,
+                    stateLga = stateLga.trim(),
+                    emergencyContacts = contacts,
+                    role = role.name,
+                    medicalPersonnelProfile = medicalPersonnelProfile,
+                    responderProfile = responderProfile,
+                ),
+            )
+            session.markRegistrationComplete(trimmedName, role)
         }
     }
 }

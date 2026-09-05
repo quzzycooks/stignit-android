@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.compose.runtime.LaunchedEffect
+import com.stignit.app.data.AccountRole
 import com.stignit.app.data.ApiResult
 import com.stignit.app.data.rememberIncidentRepository
 import com.stignit.app.data.sessionStore
@@ -26,6 +27,7 @@ import com.stignit.app.ui.auth.AuthScreen
 import com.stignit.app.ui.auth.MedicalInfoStepScreen
 import com.stignit.app.ui.auth.OtpScreen
 import com.stignit.app.ui.auth.RegisterScreen
+import com.stignit.app.ui.auth.RoleSelectScreen
 import com.stignit.app.ui.components.BottomNavTab
 import com.stignit.app.ui.contacts.ContactsScreen
 import com.stignit.app.ui.home.HomeScreen
@@ -42,6 +44,7 @@ private object Routes {
     const val Onboarding = "onboarding"
     const val Auth = "auth"
     const val Otp = "otp"
+    const val RoleSelect = "role_select"
     const val Register = "register"
     const val MedicalInfoStep = "medical_info_step"
     const val Settings = "settings"
@@ -65,6 +68,7 @@ private class PendingAuth {
     var isEmail: Boolean = false
     var devCode: String? = null
     var resendInSec: Int = 30
+    var role: AccountRole = AccountRole.CIVILIAN
 }
 
 @Composable
@@ -159,8 +163,8 @@ fun StignItNavHost() {
                     if (registrationComplete) {
                         goHome()
                     } else {
-                        // Code is spent — drop Otp so Back from Register doesn't re-expose it.
-                        navController.navigate(Routes.Register) {
+                        // Code is spent — drop Otp so Back from RoleSelect doesn't re-expose it.
+                        navController.navigate(Routes.RoleSelect) {
                             popUpTo(Routes.Otp) { inclusive = true }
                         }
                     }
@@ -168,13 +172,30 @@ fun StignItNavHost() {
                 onBack = { navController.popBackStack() },
             )
         }
+        composable(Routes.RoleSelect) {
+            RoleSelectScreen(
+                onRoleSelected = { role ->
+                    pending.role = role
+                    navController.navigate(Routes.Register)
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
         composable(Routes.Register) {
             RegisterScreen(
+                role = pending.role,
                 onRegistered = {
                     // Code is spent for phone/email flows too — drop Register so Back
                     // from the medical step (or Home) can't re-expose the form.
-                    navController.navigate(Routes.MedicalInfoStep) {
-                        popUpTo(Routes.Register) { inclusive = true }
+                    if (pending.role == AccountRole.CIVILIAN) {
+                        navController.navigate(Routes.MedicalInfoStep) {
+                            popUpTo(Routes.Register) { inclusive = true }
+                        }
+                    } else {
+                        // Medical Personnel / Driver-Responder submitted their profile
+                        // fields as part of Register itself — no civilian-only medical
+                        // info step to show.
+                        goHome()
                     }
                 },
                 onBack = { navController.popBackStack() },
@@ -187,16 +208,22 @@ fun StignItNavHost() {
             SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.Home) {
-            HomeScreen(
-                userName = session.fullName?.trim()?.substringBefore(' ') ?: "there",
-                onOpenSituationRoom = { openActiveSituationRoom() },
-                onOpenContacts = { navController.navigate(Routes.Contacts) },
-                onOpenWelfareHistory = { navController.navigate(Routes.WelfareHistory) },
-                onOpenSafety = { navController.navigate(Routes.Safety) },
-                onSimulateImpact = { navController.navigate(Routes.welfareCheckDrill()) },
-                onOpenSettings = { navController.navigate(Routes.Settings) },
-                onSelectTab = ::onTabSelect,
-            )
+            // Placeholder routing: every role lands on the same HomeScreen for now.
+            // The branch exists so Medical Personnel / Driver-Responder can get their
+            // own Home destination later without touching the civilian path.
+            when (session.role) {
+                AccountRole.CIVILIAN, AccountRole.MEDICAL_PERSONNEL, AccountRole.DRIVER_RESPONDER ->
+                    HomeScreen(
+                        userName = session.fullName?.trim()?.substringBefore(' ') ?: "there",
+                        onOpenSituationRoom = { openActiveSituationRoom() },
+                        onOpenContacts = { navController.navigate(Routes.Contacts) },
+                        onOpenWelfareHistory = { navController.navigate(Routes.WelfareHistory) },
+                        onOpenSafety = { navController.navigate(Routes.Safety) },
+                        onSimulateImpact = { navController.navigate(Routes.welfareCheckDrill()) },
+                        onOpenSettings = { navController.navigate(Routes.Settings) },
+                        onSelectTab = ::onTabSelect,
+                    )
+            }
         }
         composable(
             Routes.WelfareCheck,

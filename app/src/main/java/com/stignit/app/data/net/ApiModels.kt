@@ -51,16 +51,31 @@ data class EmergencyContactBody(
     val priority: Int? = null,
 )
 
+data class MedicalPersonnelProfileBody(
+    val licenseNumber: String,
+    val affiliation: String,
+)
+
+data class ResponderProfileBody(
+    val vehicleType: String?,
+    val affiliation: String?,
+    val equipment: List<String>,
+)
+
 data class RegisterBody(
     val fullName: String,
     /** ISO-8601 date, e.g. "1998-05-12". Backend rejects under-16. */
     val dateOfBirth: String,
     val stateLga: String,
     val emergencyContacts: List<EmergencyContactBody>,
+    /** Wire value of [com.stignit.app.data.AccountRole], e.g. "CIVILIAN". */
+    val role: String,
     val profilePhotoUrl: String? = null,
+    val medicalPersonnelProfile: MedicalPersonnelProfileBody? = null,
+    val responderProfile: ResponderProfileBody? = null,
 )
 
-data class RegisterResponse(val id: String, val accessLevel: String)
+data class RegisterResponse(val id: String, val accessLevel: String, val role: String)
 
 // --- GET/POST/DELETE /v1/users/me/emergency-contacts ---
 data class EmergencyContactResponse(
@@ -121,6 +136,7 @@ data class MeResponse(
     val fullName: String?,
     val medicalInfo: MedicalInfoBody?,
     val medicalInfoComplete: Boolean,
+    val role: String? = null,
 )
 
 /** NestJS error envelope ({ statusCode, message, error }). `message` can be a string or string[]. */
