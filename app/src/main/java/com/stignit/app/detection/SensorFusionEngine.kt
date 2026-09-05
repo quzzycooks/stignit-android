@@ -31,8 +31,10 @@ enum class DetectionConfidence { LOW, MEDIUM, HIGH }
  *  Stage 3  speed delta (optional) — a >= [SPEED_DROP_GATE_KMH] drop inside 1 s,
  *                                 only when a ground-speed source is supplied.
  *
- *  Scoring: accel only -> LOW (log only), accel + gyro -> MEDIUM,
- *           accel + gyro + speed -> HIGH.
+ *  Scoring: accel alone -> LOW (log only). Gyro and speed each independently
+ *           corroborate accel to MEDIUM — a straight-on, non-rotating collision
+ *           (head-on, rear-end) still reads MEDIUM via the speed drop even
+ *           though it never spins the phone. Both agreeing -> HIGH.
  *  After any MEDIUM/HIGH the pipeline is muted for [COOLDOWN_MS] — the device is
  *  still settling from the same event.
  *
@@ -267,15 +269,14 @@ class SensorFusionEngine(
         val gyroCorroborated = hasGyroscope && c.gyroPeakDegPerSec >= GYRO_GATE_DEG_PER_SEC
         val speedDropKmh = maxRecentSpeedDropKmh()
         val speedCorroborated = speedDropKmh >= SPEED_DROP_GATE_KMH
+        val corroborationCount = (if (gyroCorroborated) 1 else 0) + (if (speedCorroborated) 1 else 0)
 
-        // TODO(detection): gyro corroboration is mandatory for MEDIUM/HIGH, so a
-        //  phone with no gyroscope is permanently capped at LOW under this design.
-        //  A speed-delta-only fallback (Stage 3 standing in for Stage 2 when
-        //  hasGyroscope == false) is a deliberately deferred decision, not an
-        //  oversight — revisit once Stage 3 has a real speed source.
+        // Gyro and speed each independently promote accel to MEDIUM (OR, not AND) —
+        // a non-rotating collision (head-on, rear-end) still corroborates via the
+        // speed drop alone. HIGH needs both signals agreeing with accel.
         val confidence = when {
-            gyroCorroborated && speedCorroborated -> DetectionConfidence.HIGH
-            gyroCorroborated -> DetectionConfidence.MEDIUM
+            corroborationCount >= 2 -> DetectionConfidence.HIGH
+            corroborationCount == 1 -> DetectionConfidence.MEDIUM
             else -> DetectionConfidence.LOW
         }
 
@@ -296,9 +297,11 @@ class SensorFusionEngine(
 
         when (confidence) {
             DetectionConfidence.LOW ->
-                Log.d(TAG, "Candidate: LOW — accel spike, no rotation (drop / hard brake?). $readings")
-            DetectionConfidence.MEDIUM ->
-                Log.d(TAG, "Candidate: MEDIUM — accel + rotation agree. $readings")
+                Log.d(TAG, "Candidate: LOW — accel spike only, no corroboration (drop / hard brake?). $readings")
+            DetectionConfidence.MEDIUM -> {
+                val via = if (gyroCorroborated) "rotation" else "speed drop"
+                Log.d(TAG, "Candidate: MEDIUM — accel + $via agree. $readings")
+            }
             DetectionConfidence.HIGH ->
                 Log.d(TAG, "Candidate: HIGH — accel + rotation + speed drop agree. $readings")
         }
