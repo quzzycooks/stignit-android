@@ -14,9 +14,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.runtime.LaunchedEffect
 import com.stignit.app.data.ApiResult
 import com.stignit.app.data.rememberIncidentRepository
 import com.stignit.app.data.sessionStore
+import com.stignit.app.detection.CrashSignal
+import com.stignit.app.detection.DetectionConfidence
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.stignit.app.ui.auth.AuthScreen
 import com.stignit.app.ui.auth.MedicalInfoStepScreen
@@ -42,7 +46,10 @@ private object Routes {
     const val MedicalInfoStep = "medical_info_step"
     const val Settings = "settings"
     const val Home = "home"
-    const val WelfareCheck = "welfare_check"
+    private const val WelfareCheckBase = "welfare_check"
+    const val WelfareCheck = "$WelfareCheckBase?real={real}"
+    fun welfareCheckDrill() = WelfareCheckBase
+    fun welfareCheckReal() = "$WelfareCheckBase?real=true"
     const val SituationRoom = "situation_room/{incidentId}"
     fun situationRoom(incidentId: String) = "situation_room/$incidentId"
     const val Contacts = "contacts"
@@ -113,6 +120,17 @@ fun StignItNavHost() {
         }
     }
 
+    // CrashDetectionService has no NavController of its own; it signals here via
+    // CrashSignal, and this collects only while the NavHost is actually composed
+    // (i.e. the app is in the foreground).
+    LaunchedEffect(Unit) {
+        CrashSignal.events.collectLatest { confidence ->
+            if (confidence != DetectionConfidence.LOW) {
+                navController.navigate(Routes.welfareCheckReal())
+            }
+        }
+    }
+
     NavHost(navController = navController, startDestination = start) {
         composable(Routes.Onboarding) {
             OnboardingScreen(
@@ -175,15 +193,20 @@ fun StignItNavHost() {
                 onOpenContacts = { navController.navigate(Routes.Contacts) },
                 onOpenWelfareHistory = { navController.navigate(Routes.WelfareHistory) },
                 onOpenSafety = { navController.navigate(Routes.Safety) },
-                onSimulateImpact = { navController.navigate(Routes.WelfareCheck) },
+                onSimulateImpact = { navController.navigate(Routes.welfareCheckDrill()) },
                 onOpenSettings = { navController.navigate(Routes.Settings) },
                 onSelectTab = ::onTabSelect,
             )
         }
-        composable(Routes.WelfareCheck) {
+        composable(
+            Routes.WelfareCheck,
+            arguments = listOf(navArgument("real") { type = NavType.BoolType; defaultValue = false }),
+        ) { backStackEntry ->
+            val isReal = backStackEntry.arguments?.getBoolean("real") ?: false
             WelfareCheckScreen(
                 onImOk = { goHome() },
                 onGetHelp = { incidentId -> navController.navigate(Routes.situationRoom(incidentId)) },
+                isDrill = !isReal,
             )
         }
         composable(
@@ -206,7 +229,7 @@ fun StignItNavHost() {
         composable(Routes.Safety) {
             SafetyScreen(
                 onBack = { navController.popBackStack() },
-                onStartDrill = { navController.navigate(Routes.WelfareCheck) },
+                onStartDrill = { navController.navigate(Routes.welfareCheckDrill()) },
                 onOpenGuide = { guideId -> navController.navigate(Routes.safetyGuide(guideId)) },
                 currentTab = BottomNavTab.Safety,
                 onSelectTab = ::onTabSelect,

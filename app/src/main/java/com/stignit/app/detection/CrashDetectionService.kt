@@ -18,10 +18,9 @@ import com.stignit.app.StignItApplication
  * the required persistent notification, holds a partial wake lock, and survives
  * Doze / App Standby.
  *
- * Milestone 2: [SensorFusionEngine] is started in [onStartCommand] and stopped in
- * [onDestroy]. Detection is log-only for now — [onDetectionCandidate] just writes
- * to logcat so real behaviour can be observed before milestone 4 routes
- * MEDIUM/HIGH candidates to the welfare-check screen.
+ * [SensorFusionEngine] is started in [onStartCommand] and stopped in [onDestroy].
+ * MEDIUM/HIGH candidates are pushed onto [CrashSignal] for the nav graph to pick
+ * up — see [onDetectionCandidate].
  */
 class CrashDetectionService : Service() {
 
@@ -65,18 +64,19 @@ class CrashDetectionService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     /**
-     * Milestone 2: detection is log-only so real behaviour can be watched in
-     * logcat (`adb logcat -s StignIt/SensorFusion StignIt/CrashService`). Milestone
-     * 4 routes MEDIUM/HIGH candidates to the welfare-check screen.
-     *
-     * Invoked on [SensorFusionEngine]'s background thread.
+     * Invoked on [SensorFusionEngine]'s background thread. MEDIUM/HIGH candidates
+     * are pushed onto [CrashSignal]; [com.stignit.app.ui.nav.StignItNavHost]
+     * collects it while the app is foregrounded and routes to the real
+     * (non-drill) welfare check. LOW stays log-only.
      */
     private fun onDetectionCandidate(confidence: DetectionConfidence) {
         when (confidence) {
             DetectionConfidence.LOW ->
                 Log.d(TAG, "Detection candidate: LOW — logged only, no welfare check")
-            DetectionConfidence.MEDIUM, DetectionConfidence.HIGH ->
-                Log.d(TAG, "Detection candidate: $confidence — welfare check would trigger here (not wired yet)")
+            DetectionConfidence.MEDIUM, DetectionConfidence.HIGH -> {
+                Log.d(TAG, "Detection candidate: $confidence — signaling welfare check")
+                CrashSignal.events.tryEmit(confidence)
+            }
         }
     }
 
