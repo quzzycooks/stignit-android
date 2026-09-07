@@ -12,6 +12,9 @@ captures/
 # Local SDK / machine config — must not be shared
 local.properties
 
+# Real Firebase config — contains a live API key, never commit
+app/google-services.json
+
 # Claude Code local settings
 .claude/settings.local.json
 
