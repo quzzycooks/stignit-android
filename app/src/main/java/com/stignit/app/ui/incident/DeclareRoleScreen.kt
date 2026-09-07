@@ -2,6 +2,7 @@ package com.stignit.app.ui.incident
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -10,6 +11,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -21,6 +27,7 @@ import com.stignit.app.ui.components.Screen
 import com.stignit.app.ui.components.TopBar
 import com.stignit.app.ui.components.clickableNoRipple
 import com.stignit.app.ui.theme.StignItExtraColors
+import kotlinx.coroutines.delay
 
 private data class DeclareOption(
     val role: String,
@@ -44,16 +51,43 @@ private val options = listOf(
     ),
 )
 
+private const val COUNTDOWN_SECONDS = 10
+
 /**
- * Shown when someone joins a Situation Room via a proximity-alert notification
- * they didn't trigger — never shown to whoever actually triggered the incident
- * (that person is auto-assigned "victim" server-side, no prompt).
+ * Shown either when someone joins a Situation Room via a proximity-alert
+ * notification they didn't trigger (no countdown — they're not the one who
+ * called for help, so there's no urgency forcing a choice), or when the
+ * person who just triggered their own incident hasn't yet said why they're
+ * on scene ([showCountdown] = true): a genuinely injured/unconscious trigger
+ * can't be expected to answer a prompt, so a [COUNTDOWN_SECONDS]-second
+ * countdown auto-assigns "victim" (the safe default for someone who called
+ * for help on themselves) rather than leaving them stuck here indefinitely.
  */
 @Composable
 fun DeclareRoleScreen(
     onRoleDeclared: (role: String) -> Unit,
     onBack: () -> Unit,
+    showCountdown: Boolean = false,
 ) {
+    var resolved by remember { mutableStateOf(false) }
+    var secondsLeft by remember { mutableStateOf(COUNTDOWN_SECONDS) }
+
+    fun choose(role: String) {
+        if (resolved) return
+        resolved = true
+        onRoleDeclared(role)
+    }
+
+    LaunchedEffect(showCountdown, secondsLeft, resolved) {
+        if (!showCountdown || resolved) return@LaunchedEffect
+        if (secondsLeft > 0) {
+            delay(1000)
+            secondsLeft -= 1
+        } else {
+            choose("victim") // countdown hit zero -> same as tapping "I'm involved"
+        }
+    }
+
     Screen(scrollable = false) {
         TopBar(onBack = onBack)
 
@@ -66,14 +100,56 @@ fun DeclareRoleScreen(
         )
         Text(
             "This helps responders understand who's on scene.",
-            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+            modifier = Modifier.padding(top = 8.dp, bottom = if (showCountdown) 16.dp else 24.dp),
             fontSize = 16.sp,
             color = StignItExtraColors.mutedForeground,
         )
 
+        if (showCountdown) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(StignItExtraColors.danger.copy(alpha = 0.12f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "$secondsLeft",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StignItExtraColors.danger,
+                    )
+                }
+                Text(
+                    "No answer in ${secondsLeft}s and we'll assume you're involved.",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    color = StignItExtraColors.mutedForeground,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+                    .height(4.dp)
+                    .background(StignItExtraColors.mutedForeground.copy(alpha = 0.2f), CircleShape),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(secondsLeft / COUNTDOWN_SECONDS.toFloat())
+                        .background(StignItExtraColors.danger, CircleShape),
+                )
+            }
+        }
+
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             options.forEach { option ->
-                Panel(modifier = Modifier.clickableNoRipple { onRoleDeclared(option.role) }) {
+                Panel(modifier = Modifier.clickableNoRipple { choose(option.role) }) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Box(
                             modifier = Modifier
