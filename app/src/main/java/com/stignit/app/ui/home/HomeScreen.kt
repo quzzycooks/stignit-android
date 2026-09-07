@@ -203,26 +203,10 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(160.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(StignItExtraColors.danger)
-                            .clickableNoRipple(onSimulateImpact),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Filled.Shield, contentDescription = null, tint = StignItExtraColors.dangerForeground, modifier = Modifier.size(32.dp))
-                            Text("SOS", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = StignItExtraColors.dangerForeground, modifier = Modifier.padding(top = 4.dp))
-                            Text("Press and hold", fontSize = 12.sp, color = StignItExtraColors.dangerForeground.copy(alpha = 0.9f))
-                        }
-                    }
-                    Text(
-                        "Hold for 3 seconds to open a live incident. A short hold prevents accidental alerts.",
-                        modifier = Modifier.padding(top = 16.dp).fillMaxWidth(0.85f),
-                        fontSize = 14.sp,
-                        color = StignItExtraColors.mutedForeground,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    SlideToConfirmButton(
+                        text = "Slide to send SOS",
+                        onConfirmed = onSimulateImpact,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
