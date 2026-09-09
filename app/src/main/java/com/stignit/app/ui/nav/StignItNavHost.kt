@@ -17,6 +17,7 @@ import androidx.navigation.navArgument
 import androidx.compose.runtime.LaunchedEffect
 import com.stignit.app.data.AccountRole
 import com.stignit.app.data.ApiResult
+import com.stignit.app.data.DRILL_INCIDENT_ID
 import com.stignit.app.data.rememberIncidentRepository
 import com.stignit.app.data.sessionStore
 import com.stignit.app.detection.CrashSignal
@@ -57,8 +58,13 @@ private object Routes {
     fun welfareCheckReal() = "$WelfareCheckBase?real=true"
     const val SituationRoom = "situation_room/{incidentId}"
     fun situationRoom(incidentId: String) = "situation_room/$incidentId"
-    const val DeclareRole = "declare_role/{incidentId}"
-    fun declareRole(incidentId: String) = "declare_role/$incidentId"
+    private const val DeclareRoleBase = "declare_role/{incidentId}"
+    const val DeclareRole = "$DeclareRoleBase?countdown={countdown}"
+    // countdown=true is for whoever just triggered their own incident (a stuck/
+    // unresponsive trigger-er can't be left waiting here indefinitely); proximity
+    // joiners (the other caller of this route) leave it at the false default and
+    // wait as long as they need — they didn't trigger the emergency.
+    fun declareRole(incidentId: String, countdown: Boolean = false) = "declare_role/$incidentId?countdown=$countdown"
     const val Contacts = "contacts"
     const val Safety = "safety"
     const val SafetyGuide = "safety_guide/{guideId}"
@@ -240,7 +246,8 @@ fun StignItNavHost(pendingIncidentId: String? = null) {
                         onOpenContacts = { navController.navigate(Routes.Contacts) },
                         onOpenWelfareHistory = { navController.navigate(Routes.WelfareHistory) },
                         onOpenSafety = { navController.navigate(Routes.Safety) },
-                        onSimulateImpact = { navController.navigate(Routes.welfareCheckDrill()) },
+                        onSendSos = { navController.navigate(Routes.welfareCheckReal()) },
+                        onPreviewWelfareCheck = { navController.navigate(Routes.welfareCheckDrill()) },
                         onOpenSettings = { navController.navigate(Routes.Settings) },
                         onSelectTab = ::onTabSelect,
                     )
@@ -253,7 +260,9 @@ fun StignItNavHost(pendingIncidentId: String? = null) {
             val isReal = backStackEntry.arguments?.getBoolean("real") ?: false
             WelfareCheckScreen(
                 onImOk = { goHome() },
-                onGetHelp = { incidentId -> navController.navigate(Routes.situationRoom(incidentId)) },
+                onGetHelp = { incidentId ->
+                    navController.navigate(Routes.declareRole(incidentId, countdown = true))
+                },
                 isDrill = !isReal,
             )
         }
@@ -269,15 +278,24 @@ fun StignItNavHost(pendingIncidentId: String? = null) {
         }
         composable(
             Routes.DeclareRole,
-            arguments = listOf(navArgument("incidentId") { type = NavType.StringType }),
+            arguments = listOf(
+                navArgument("incidentId") { type = NavType.StringType },
+                navArgument("countdown") { type = NavType.BoolType; defaultValue = false },
+            ),
         ) { backStackEntry ->
             val incidentId = backStackEntry.arguments?.getString("incidentId").orEmpty()
+            val showCountdown = backStackEntry.arguments?.getBoolean("countdown") ?: false
             DeclareRoleScreen(
+                showCountdown = showCountdown,
                 onRoleDeclared = { role ->
                     scope.launch {
-                        incidents.declareRole(incidentId, role)
+                        // Drills never touch the real API — same isolation WelfareCheckScreen
+                        // already guarantees for the rest of the drill flow.
+                        if (incidentId != DRILL_INCIDENT_ID) {
+                            incidents.declareRole(incidentId, role)
+                        }
                         navController.navigate(Routes.situationRoom(incidentId)) {
-                            popUpTo(Routes.declareRole(incidentId)) { inclusive = true }
+                            popUpTo(Routes.declareRole(incidentId, showCountdown)) { inclusive = true }
                         }
                     }
                 },

@@ -37,7 +37,10 @@ fun HomeScreen(
     onOpenContacts: () -> Unit,
     onOpenWelfareHistory: () -> Unit,
     onOpenSafety: () -> Unit,
-    onSimulateImpact: () -> Unit,
+    /** Real SOS: the "Slide to send SOS" gesture — creates a live incident, notifies contacts and nearby responders. */
+    onSendSos: () -> Unit,
+    /** Drill-only preview of the welfare-check screen — must never create an incident or send any alert. */
+    onPreviewWelfareCheck: () -> Unit,
     onOpenSettings: () -> Unit,
     onSelectTab: (BottomNavTab) -> Unit,
 ) {
@@ -203,26 +206,10 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(160.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(StignItExtraColors.danger)
-                            .clickableNoRipple(onSimulateImpact),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Filled.Shield, contentDescription = null, tint = StignItExtraColors.dangerForeground, modifier = Modifier.size(32.dp))
-                            Text("SOS", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = StignItExtraColors.dangerForeground, modifier = Modifier.padding(top = 4.dp))
-                            Text("Press and hold", fontSize = 12.sp, color = StignItExtraColors.dangerForeground.copy(alpha = 0.9f))
-                        }
-                    }
-                    Text(
-                        "Hold for 3 seconds to open a live incident. A short hold prevents accidental alerts.",
-                        modifier = Modifier.padding(top = 16.dp).fillMaxWidth(0.85f),
-                        fontSize = 14.sp,
-                        color = StignItExtraColors.mutedForeground,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    SlideToConfirmButton(
+                        text = "Slide to send SOS",
+                        onConfirmed = onSendSos,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
@@ -273,7 +260,7 @@ fun HomeScreen(
                 )
                 NavTile(Icons.Filled.MonitorHeart, "Welfare Checks", "Every check StignIt has raised for you", onOpenWelfareHistory)
                 NavTile(Icons.AutoMirrored.Filled.MenuBook, "Safety Knowledge & Drills", "Practice the flow before you ever need it", onOpenSafety)
-                NavTile(Icons.Filled.DirectionsCar, "Simulate impact detection", "Preview the welfare check screen", onSimulateImpact)
+                NavTile(Icons.Filled.DirectionsCar, "Simulate impact detection", "Preview the welfare check screen", onPreviewWelfareCheck)
             }
         }
 

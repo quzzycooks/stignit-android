@@ -45,9 +45,16 @@ private const val INCIDENT_TYPE_UNKNOWN = "UNKNOWN"
  * and the incident is created either way — even with no location at all.
  *
  * [isDrill] short-circuits all of that: no real incident, no location call, no
- * emergency-contact SMS — just the countdown UI. Every current entry point
- * (Home's "Simulate impact", Safety's "Start Drill") is a drill; a real
- * crash-trigger entry point would pass `isDrill = false`.
+ * emergency-contact SMS, no proximity push — just the countdown UI, and a
+ * countdown that hits zero navigates on with [DRILL_INCIDENT_ID] instead of
+ * calling the API.
+ *
+ * Entry points:
+ *  - `isDrill = false` (real SOS): Home's "Slide to send SOS" gesture, and the
+ *    [com.stignit.app.detection.CrashSignal] path from CrashDetectionService.
+ *    Only this mode can create an incident or auto-escalate on timeout.
+ *  - `isDrill = true` (preview only): Home's "Simulate impact detection" tile
+ *    and Safety's "Start Drill".
  */
 @Composable
 fun WelfareCheckScreen(
