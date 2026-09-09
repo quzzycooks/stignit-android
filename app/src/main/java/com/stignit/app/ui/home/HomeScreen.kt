@@ -37,7 +37,10 @@ fun HomeScreen(
     onOpenContacts: () -> Unit,
     onOpenWelfareHistory: () -> Unit,
     onOpenSafety: () -> Unit,
-    onSimulateImpact: () -> Unit,
+    /** Real SOS: the "Slide to send SOS" gesture — creates a live incident, notifies contacts and nearby responders. */
+    onSendSos: () -> Unit,
+    /** Drill-only preview of the welfare-check screen — must never create an incident or send any alert. */
+    onPreviewWelfareCheck: () -> Unit,
     onOpenSettings: () -> Unit,
     onSelectTab: (BottomNavTab) -> Unit,
 ) {
@@ -205,7 +208,7 @@ fun HomeScreen(
                 ) {
                     SlideToConfirmButton(
                         text = "Slide to send SOS",
-                        onConfirmed = onSimulateImpact,
+                        onConfirmed = onSendSos,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -257,7 +260,7 @@ fun HomeScreen(
                 )
                 NavTile(Icons.Filled.MonitorHeart, "Welfare Checks", "Every check StignIt has raised for you", onOpenWelfareHistory)
                 NavTile(Icons.AutoMirrored.Filled.MenuBook, "Safety Knowledge & Drills", "Practice the flow before you ever need it", onOpenSafety)
-                NavTile(Icons.Filled.DirectionsCar, "Simulate impact detection", "Preview the welfare check screen", onSimulateImpact)
+                NavTile(Icons.Filled.DirectionsCar, "Simulate impact detection", "Preview the welfare check screen", onPreviewWelfareCheck)
             }
         }
 

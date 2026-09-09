@@ -246,7 +246,8 @@ fun StignItNavHost(pendingIncidentId: String? = null) {
                         onOpenContacts = { navController.navigate(Routes.Contacts) },
                         onOpenWelfareHistory = { navController.navigate(Routes.WelfareHistory) },
                         onOpenSafety = { navController.navigate(Routes.Safety) },
-                        onSimulateImpact = { navController.navigate(Routes.welfareCheckDrill()) },
+                        onSendSos = { navController.navigate(Routes.welfareCheckReal()) },
+                        onPreviewWelfareCheck = { navController.navigate(Routes.welfareCheckDrill()) },
                         onOpenSettings = { navController.navigate(Routes.Settings) },
                         onSelectTab = ::onTabSelect,
                     )
